@@ -17,8 +17,54 @@ PARTITIONED BY (day string)
     
 STORED AS ORC
 
+-- 以2020-10-12作为历史基础数据
+insert overwrite table dmining.dmining_f_risk_model_lon_info partition(day = '2020-10-12')
+select aa.uid
+      ,aa.ato_tim
+      ,aa.adt_tim
+      ,aa.fst_ord_tim
+      ,aa.lon_adt_dif
+      ,case when aa.lon_adt_dif is null then 1 else 0 end as is_lon
+      ,case when aa.lon_adt_dif = 0 then 1 else 0 end as is_0d_lon
+      ,case when aa.lon_adt_dif <= 7 then 1 else 0 end as is_7d_lon
+      ,case when aa.lon_adt_dif <= 15 then 1 else 0 end as is_15d_lon
+      ,case when aa.lon_adt_dif <= 30 then 1 else 0 end as is_30d_lon
+      ,case when aa.lon_adt_dif <= 90 then 1 else 0 end as is_90d_lon
+      ,case when aa.lon_adt_dif <= 180 then 1 else 0 end as is_180d_lon
+from (
+    select aa.uid
+          ,substr(aa.ato_tim,1,10) as ato_tim
+          ,substr(aa.adt_tim,1,10) as adt_tim
+          ,substr(bb.fst_ord_tim,1,10) as fst_ord_tim
+          ,datediff(bb.fst_ord_tim,aa.adt_tim) as lon_adt_dif
+    from (
+        select *
+        from dbank.dbank_f_all_milestone
+        where day = '2020-10-12'
+    ) as aa 
+    -- 取CASH和BT业务的首次动支时间
+    left join (
+        select uid
+              ,min(crt_tim) as fst_ord_tim 
+        from dbank.loan_f_order_info
+        where day = '2020-10-12' 
+          and bsy_typ in ('CASH','BALANCE_TRANSFER') 
+          and ord_stt in ('LENDING','PAY_OFF','SOLD','EXCEED')
+        group by uid
+    ) as bb
+    on aa.uid = bb.uid
+) as aa
 
-insert into table dmining.dmining_f_risk_model_lon_info partition(day = '{{params.yesterday}}')
+
+
+
+
+-- 每日新增更新
+-- 新进用户
+-- 新申完用户
+-- 新授信用户
+-- 新BT、CASH动支用户
+insert overwrite table dmining.dmining_f_risk_model_lon_info partition(day = '{{params.yesterday}}')
 select aa.uid
       ,aa.ato_tim
       ,aa.adt_tim
@@ -54,3 +100,9 @@ from (
     ) as bb
     on aa.uid = bb.uid
 ) as aa 
+left join ( select * from dmining.dmining_f_risk_model_lon_info where day = date_add('{{params.yesterday}}',-1)) as bb 
+on aa.uid = bb.uid
+where bb.uid is null
+   or (aa.ato_tim is null and bb.ato_tim is not null)
+   or (aa.adt_tim is null and bb.adt_tim is not null)
+   or (aa.fst_ord_tim is null and bb.fst_ord_tim is not null)
