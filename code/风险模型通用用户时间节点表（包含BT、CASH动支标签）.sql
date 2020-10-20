@@ -28,7 +28,7 @@ select aa.uid
       ,aa.adt_tim
       ,aa.fst_ord_tim
       ,aa.lon_adt_dif
-      ,case when aa.lon_adt_dif is null then 1 else 0 end as is_lon
+      ,case when aa.lon_adt_dif is not null then 1 else 0 end as is_lon
       ,case when aa.lon_adt_dif = 0 then 1 else 0 end as is_0d_lon
       ,case when aa.lon_adt_dif <= 7 then 1 else 0 end as is_7d_lon
       ,case when aa.lon_adt_dif <= 15 then 1 else 0 end as is_15d_lon
@@ -89,21 +89,21 @@ COMMENT '风险模型通用用户时间节点表（包含BT、CASH动支标签�
     
 STORED AS ORC
 
--- 以2020-10-12作为历史基础数据
+-- 以2020-10-19作为历史基础数据
 insert overwrite table dmining.dmining_f_risk_model_lon_info
 select aa.uid
       ,aa.ato_tim
       ,aa.adt_tim
       ,aa.fst_ord_tim
       ,aa.lon_adt_dif
-      ,case when aa.lon_adt_dif is null then 1 else 0 end as is_lon
+      ,case when aa.lon_adt_dif is not null then 1 else 0 end as is_lon
       ,case when aa.lon_adt_dif = 0 then 1 else 0 end as is_0d_lon
       ,case when aa.lon_adt_dif <= 7 then 1 else 0 end as is_7d_lon
       ,case when aa.lon_adt_dif <= 15 then 1 else 0 end as is_15d_lon
       ,case when aa.lon_adt_dif <= 30 then 1 else 0 end as is_30d_lon
       ,case when aa.lon_adt_dif <= 90 then 1 else 0 end as is_90d_lon
       ,case when aa.lon_adt_dif <= 180 then 1 else 0 end as is_180d_lon
-      ,'2020-10-12' as day
+      ,'2020-10-19' as day
 from (
     select aa.uid
           ,substr(aa.ato_tim,1,10) as ato_tim
@@ -113,7 +113,7 @@ from (
     from (
         select *
         from dbank.dbank_f_all_milestone
-        where day = '2020-10-12'
+        where day = '2020-10-19'
           and ato_tim is not null
     ) as aa 
     -- 取CASH和BT业务的首次动支时间
@@ -121,7 +121,7 @@ from (
         select uid
               ,min(crt_tim) as fst_ord_tim 
         from dbank.loan_f_order_info
-        where day = '2020-10-12' 
+        where day = '2020-10-19' 
           and bsy_typ in ('CASH','BALANCE_TRANSFER') 
           and ord_stt in ('LENDING','PAY_OFF','SOLD','EXCEED')
         group by uid
